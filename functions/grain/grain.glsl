@@ -131,12 +131,23 @@ float sigmoid1(float x, float a){
 }
 
 float grain(vec3 v){
+	// xyを4倍に拡大
 	v = vec3(v.xy * 4.0, v.z);
+	// xyベクトルの長さの二乗を算出
 	float l = length(v.xy);
 	l = pow(l, 2.0);
+	// 長さにノイズを加える
 	l += octaves(v * 0.01, 0.45) * 25.0;
+	// 長さに応じて変化する波を作る
 	float req =cos(2.0 * PI * l);
-	req = sigmoid1(req + 0.85, 18.0);
+	// 波の形を調節
+	req = sigmoid1(req + 0.85, 3.0);
+	// xyを2倍、zを0.5倍に拡大縮小
+	v = vec3(v.xy * 2.0, v.z * 0.5);
+	// 全体的にノイズを加える
+	req -= ((octaves(vec3(l, v.xy), 0.45) + 1.0) / 2.0) * 1.2;
+	// -1.0, 1.0をはみ出ないように調節
+	req = sigmoid1(req, 1.2);
 	return req;
 }
 
@@ -146,7 +157,7 @@ void main(void){
 	vec3 pos = vec3(
 		0.6,
 		(p.y * 2.0) - 1.0,
-		(p.x + time) * 2.0
+		(p.x + time * 0.2) * 2.0
 	) * freq;
 	float n = grain(pos);
 	
