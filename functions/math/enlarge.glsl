@@ -23,7 +23,7 @@ uniform vec2 mouse;
 uniform vec2 resolution;
 
 float enlarge(float x, vec2 a, vec2 b){
-	return (x - a.x) * ((b.y - b.x)/((a.y - a.x))) + b.x;
+	return (x - a.x) * ((b.y - b.x)/(a.y - a.x)) + b.x;
 }
 
 void main(void){

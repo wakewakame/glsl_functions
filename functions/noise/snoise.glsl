@@ -7,7 +7,6 @@ float snoise(vec3 v)
 	Simplex Noiseを生成する
 	各次元の周波数は1
 	vに係数を掛けて周波数を調節する
-	vの係数の目安はsnoiseの10^1倍ほど
 	戻り値の範囲は-1.0,1.0
 */
 
