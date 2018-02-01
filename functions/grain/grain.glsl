@@ -1,7 +1,13 @@
 /*
 *ドキュメント
-
-
+参考元 : https://github.com/ashima/webgl-noise
+float grain(vec3 v)
+	木目模様を生成する関数
+	v.zの方向に木が伸びている
+	z軸に垂直な断面の模様が年輪の模様になる
+	z軸に平行な断面の模様が木材の模様になる
+	(v.x, v.y)の最小値、最大値の目安は(-1.0, -1.0), (1.0, 1.0)
+	v.x : v.y : v.z の比率の目安は 1 : 1 : 1
 */
 
 #ifdef GL_ES
@@ -13,6 +19,8 @@ precision mediump float;
 uniform float time;
 uniform vec2 mouse;
 uniform vec2 resolution;
+
+const float PI = 3.14159265;
 
 vec3 mod289(vec3 x) {
 	return x - floor(x * (1.0 / 289.0)) * 289.0;
@@ -107,25 +115,41 @@ float snoise(vec3 v) {
 }
 
 const int  oct  = 8;
-const float per  = 0.43;
-float octaves(vec3 v){
+float octaves(vec3 v, float per){
 	float req = 0.0;
 	for(int i = 0; i < oct; i++){
-		float freq = pow(2.0, float(i));
-		float amp  = pow(per, float(oct - i));
+		float freq = pow(per, float(i));
+		float amp  = pow(per, float(i));
 		req += snoise(v / freq) * amp;
 	}
-	req = clamp(req, -1.0, 1.0);
 	return req;
 }
 
+float sigmoid1(float x, float a){
+	float ex = exp(-2.0 * a * x);
+	return (1.0 - ex) / (1.0 + ex);
+}
 
-const float frequency = 1000.0;
-void main( void ) {
-	vec2 position = gl_FragCoord.xy / resolution;
+float grain(vec3 v){
+	v = vec3(v.xy * 4.0, v.z);
+	float l = length(v.xy);
+	l = pow(l, 2.0);
+	l += octaves(v * 0.01, 0.45) * 25.0;
+	float req =cos(2.0 * PI * l);
+	req = sigmoid1(req + 0.85, 18.0);
+	return req;
+}
 
-	float n = octaves(vec3(position * frequency, time * 100.0));
+const float freq = 1.0;
+void main(void){
+	vec2 p = gl_FragCoord.xy / resolution.y;
+	vec3 pos = vec3(
+		0.6,
+		(p.y * 2.0) - 1.0,
+		(p.x + time) * 2.0
+	) * freq;
+	float n = grain(pos);
+	
 	n = (n + 1.0) / 2.0;
-
-	gl_FragColor = vec4( vec3(n), 1.0 );
+	gl_FragColor = vec4(vec3(n), 1.0);
 }
