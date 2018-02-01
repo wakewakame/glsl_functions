@@ -1,12 +1,10 @@
 /*
 *ドキュメント
-
 float sigmoid1(float x, float a)
 	原点で点対称なシグモイド関数
 	xの範囲は-1.0, 1.0
 	aはx=0のときの関数の傾き
 	戻り値の範囲は-1.0, 1.0
-
 float sigmoid2(float x, float a)
 	sigmoid1関数の(x, 戻り値)が(-1.0, -1.0), (1.0, 1.0)を通るように拡大縮小した関数
 	xの範囲は-1.0, 1.0
@@ -39,6 +37,7 @@ void main(void){
 	vec2 p = gl_FragCoord.xy / resolution;
 	float x = (p.x * 2.0) - 1.0;
 	float a = mouse.x * 100.0;
-	float n = sigmoid1(x, a);
+	float n = sigmoid2(x, a);
+	n = (n + 1.0) / 2.0;
 	gl_FragColor = vec4(vec3(n), 1.0);
 }
