@@ -1,21 +1,16 @@
 /*
 *ドキュメント
-参考元 : https://github.com/ashima/webgl-noise
-float grain(vec3 v)
-	木目模様を生成する関数
-	v.zの方向に木が伸びている
-	z軸に垂直な断面の模様が年輪の模様になる
-	z軸に平行な断面の模様が木材の模様になる
-	(v.x, v.y)の最小値、最大値の目安は(-1.0, -1.0), (1.0, 1.0)
-	v.x : v.y : v.z の比率の目安は 1 : 1 : 1
+tile1とgrainの組み合わせサンプル
+pic関数がgrainのラッパー関数
+picの引数のv.xにtile1を加算、v.yをfractでループさせ、タイルっぽくさせている
 */
-
+ 
 #ifdef GL_ES
 precision mediump float;
 #endif
-
+ 
 #extension GL_OES_standard_derivatives : enable
-
+ 
 uniform float time;
 uniform vec2 mouse;
 uniform vec2 resolution;
@@ -120,7 +115,7 @@ float octaves(vec3 v, float per){
 	for(int i = 0; i < oct; i++){
 		float freq = pow(per, float(i));
 		float amp  = pow(per, float(i));
-		req += snoise(v / freq) * amp;
+		req += (sin(v.x / freq) + cos(v.y / freq) + cos(v.z / freq)) * amp;
 	}
 	return req;
 }
@@ -147,24 +142,66 @@ float grain(vec3 v){
 	// 全体的にノイズを加える
 	float a = 0.6;
 	req = req * a + octaves(vec3(l, v.xy), 0.45) * (1.0 - a);
+	req *= 1.0;
 	return req;
 }
 
 const float freq = 1.0;
-void main(void){
-	vec2 p = gl_FragCoord.xy / resolution.y;
+vec3 pic(vec2 v){
 	vec3 pos = vec3(
 		0.6,
-		(p.y * 2.0) - 1.0,
-		(p.x + time * 0.2) * 2.0
+		((v.y * 2.0) - 1.0) * 0.5,
+		(v.x * 0.2) * 2.0 * 0.7
 	) * freq;
 	float n = grain(pos);
-	
 	n = (n + 1.0) / 2.0;
-	
 	vec3 col1 = vec3(151.0, 82.0, 49.0);
 	vec3 col2 = vec3(191.0, 111.0, 62.0);
 	vec3 col = (col1 * (1.0 - n) + col2 * n) / 255.0;
-	
-	gl_FragColor = vec4(col, 1.0);
+	return col;
+}
+ 
+float indexTile(vec2 v, vec2 div){
+	if ((div.x + div.y) - 1.0 == 0.0) return 0.0;
+	float index = 
+		floor(fract(v.x) * div.x) + 
+		floor(fract(v.y) * div.y) * div.x;
+	index /= (div.x * div.y) - 1.0;
+	return index;
+}
+ 
+
+float tile1(vec2 v, vec2 div, float gap){
+	vec2 p = v;
+	p.x += indexTile(p, vec2(1.0, div.y)) * gap * (div.y - 1.0);
+	p.x = indexTile(p, div);
+	return p.x;
+}
+
+const float delta = 0.001;
+float normal(vec2 v, vec2 div, float gap, float delta) {
+	// 関数fの点v.xyにおけるxyの係数を求める
+	vec2 req = vec2(
+		tile1(v + vec2(delta, 0.0), div, gap) - tile1(v - vec2(delta, 0.0), div, gap),
+		tile1(v + vec2(0.0, delta), div, gap) - tile1(v - vec2(0.0, delta), div, gap)
+	) / delta;
+	return sigmoid1(length(req), 1.0);
+}
+
+float enlarge(float x, vec2 a, vec2 b){
+	return (x - a.x) * ((b.y - b.x)/(a.y - a.x)) + b.x;
+}
+
+void main( void ) {
+	vec2 p = ( gl_FragCoord.xy / resolution.xy ) * mouse.x * 2.0;
+	vec2 div = vec2(2.0, 8.0);
+ 	
+	p.x += time * 0.1;
+	float i = tile1(p, div, 1.0 / 7.0);
+	float j = normal(p, div, 1.0 / 7.0, 0.0005);
+	j = enlarge(j, vec2(1.0, 0.0), vec2(0.8, 1.0));
+	vec2 p2 = vec2(p.x * div.y * 4.0 + i * 100.0 * (div.x * div.y - 1.0), fract(p.y * 1.0 * div.y) * 2.0 + (i - 0.5) * 0.3);
+	vec3 col = pic(p2) * j;
+
+	gl_FragColor = vec4( col, 1.0 );
 }
