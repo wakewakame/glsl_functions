@@ -115,7 +115,7 @@ float octaves(vec3 v, float per){
 	for(int i = 0; i < oct; i++){
 		float freq = pow(per, float(i));
 		float amp  = pow(per, float(i));
-		req += (sin(v.x / freq) + cos(v.y / freq) + cos(v.z / freq)) * amp;
+		req += snoise(v / freq) * amp;
 	}
 	return req;
 }
@@ -125,44 +125,21 @@ float sigmoid1(float x, float a){
 	return (1.0 - ex) / (1.0 + ex);
 }
 
-float grain(vec3 v){
-	// xyを4倍に拡大
-	v = vec3(v.xy * 4.0, v.z);
-	// xyベクトルの長さの二乗を算出
-	float l = length(v.xy);
-	l = pow(l, 2.0);
-	// 長さにノイズを加える
-	l += octaves(v * 0.01, 0.45) * 25.0;
-	// 長さに応じて変化する波を作る
-	float req =cos(2.0 * PI * l);
-	// 波の形を調節
-	req = sigmoid1(req + 0.85, 3.0);
-	// xyを2倍、zを0.5倍に拡大縮小
-	v = vec3(v.xy * 2.0, v.z * 0.5);
-	// 全体的にノイズを加える
-	float a = 0.6;
-	req = req * a + octaves(vec3(l, v.xy), 0.45) * (1.0 - a);
-	req *= 1.0;
+float grain(vec3 v, float n){
+	float l, w, r, req;
+	l = length(v.xy); // xyベクトルの長さを算出
+	l = pow(l, 2.0); // xyベクトルの長さを二乗
+	l += octaves(v  * n *  vec3(0.014, 0.014, 0.0042), 0.43) * 1.6; // 長さにノイズを加える
+	w =cos(2.0 * PI * l * 8.0); // xyベクトルの長さに応じて変化する波を作る
+	w = sigmoid1(w + 0.85, 3.0); // 波の形を-1.0, 1.0に収まるように調節
+	r = snoise(v * vec3(160.0, 160.0, 6.5)) + 0.5; // ザラザラしたノイズを生成
+	float p = 0.6;
+	req = w * p + r * (1.0 - p); // 波とザラザラをp:1.0-pで配合
 	return req;
-}
-
-const float freq = 1.0;
-vec3 pic(vec2 v){
-	vec3 pos = vec3(
-		0.6,
-		((v.y * 2.0) - 1.0) * 0.5,
-		(v.x * 0.2) * 2.0 * 0.7
-	) * freq;
-	float n = grain(pos);
-	n = (n + 1.0) / 2.0;
-	vec3 col1 = vec3(151.0, 82.0, 49.0);
-	vec3 col2 = vec3(191.0, 111.0, 62.0);
-	vec3 col = (col1 * (1.0 - n) + col2 * n) / 255.0;
-	return col;
 }
  
 float indexTile(vec2 v, vec2 div){
-	if ((div.x + div.y) - 1.0 == 0.0) return 0.0;
+	if ((div.x * div.y) - 1.0 == 0.0) return 0.0;
 	float index = 
 		floor(fract(v.x) * div.x) + 
 		floor(fract(v.y) * div.y) * div.x;
@@ -170,7 +147,6 @@ float indexTile(vec2 v, vec2 div){
 	return index;
 }
  
-
 float tile1(vec2 v, vec2 div, float gap){
 	vec2 p = v;
 	p.x += indexTile(p, vec2(1.0, div.y)) * gap * (div.y - 1.0);
@@ -178,30 +154,43 @@ float tile1(vec2 v, vec2 div, float gap){
 	return p.x;
 }
 
-const float delta = 0.001;
-float normal(vec2 v, vec2 div, float gap, float delta) {
-	// 関数fの点v.xyにおけるxyの係数を求める
-	vec2 req = vec2(
-		tile1(v + vec2(delta, 0.0), div, gap) - tile1(v - vec2(delta, 0.0), div, gap),
-		tile1(v + vec2(0.0, delta), div, gap) - tile1(v - vec2(0.0, delta), div, gap)
-	) / delta;
-	return sigmoid1(length(req), 1.0);
+vec3 pic(vec2 v){
+	vec3 pos = vec3(
+		0.6,
+		((v.y * 2.0) - 1.0),
+		(v.x + 10.0) * 2.0
+	);
+	float n = grain(pos, 1.0);
+	n = (n + 1.0) / 2.0;
+	vec3 col1 =  vec3(243, 204, 163);
+	vec3 col2 = vec3(229, 164, 108);
+	vec3 col = (col1 * n + col2 * (1.0 - n)) / 255.0;
+	return col;
 }
 
-float enlarge(float x, vec2 a, vec2 b){
-	return (x - a.x) * ((b.y - b.x)/(a.y - a.x)) + b.x;
+float frame(vec2 v, vec2 div, float gap, float delta) {
+	// 関数fの点v.xyにおけるxyの係数を求める
+	vec2 coefficient = vec2(
+		tile1(v + vec2(delta, 0.0), div, gap) - tile1(v - vec2(delta, 0.0), div, gap),
+		tile1(v + vec2(0.0, delta), div, gap) - tile1(v - vec2(0.0, delta), div, gap)
+	);
+	return (length(coefficient)*(div.x*div.y)<1.0)?1.0:0.8;
 }
 
 void main( void ) {
-	vec2 p = ( gl_FragCoord.xy / resolution.xy ) * mouse.x * 2.0;
-	vec2 div = vec2(2.0, 8.0);
- 	
-	p.x += time * 0.1;
-	float i = tile1(p, div, 1.0 / 7.0);
-	float j = normal(p, div, 1.0 / 7.0, 0.0005);
-	j = enlarge(j, vec2(1.0, 0.0), vec2(0.8, 1.0));
-	vec2 p2 = vec2(p.x * div.y * 4.0 + i * 100.0 * (div.x * div.y - 1.0), fract(p.y * 1.0 * div.y) * 2.0 + (i - 0.5) * 0.3);
-	vec3 col = pic(p2) * j;
+	vec2 p = ( gl_FragCoord.xy / resolution.y ) * mouse.x;
+	p.x *= 0.6;
+	p.x += time * 0.2;
+	vec2 div = vec2(2.0,6.0);
+ 
+	float i = tile1(p, div, 1.0 / 3.0) * (div.x * div.y);
+	float j = frame(p, div, 1.0 / 3.0, 0.001);
+	
+	vec2 pos = vec2(
+		p.x * div.y + i,
+		fract(p.y * div.y) * 0.9 + snoise(vec3(i)) * 0.4
+	);
+	vec3 col = pic(pos) * j;
 
 	gl_FragColor = vec4( col, 1.0 );
 }
