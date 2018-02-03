@@ -169,12 +169,10 @@ vec3 pic(vec2 v){
 }
 
 float frame(vec2 v, vec2 div, float gap, float delta) {
-	// 関数fの点v.xyにおけるxyの係数を求める
-	vec2 coefficient = vec2(
-		tile1(v + vec2(delta, 0.0), div, gap) - tile1(v - vec2(delta, 0.0), div, gap),
-		tile1(v + vec2(0.0, delta), div, gap) - tile1(v - vec2(0.0, delta), div, gap)
-	);
-	return (length(coefficient)*(div.x*div.y)<1.0)?1.0:0.8;
+	return (
+		(tile1(v + vec2(delta, 0.0), div, gap) == tile1(v - vec2(delta, 0.0), div, gap)) &&
+		(tile1(v + vec2(0.0, delta), div, gap) == tile1(v - vec2(0.0, delta), div, gap))
+	)?1.0:0.85;
 }
 
 void main( void ) {
