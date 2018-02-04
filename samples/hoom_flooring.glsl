@@ -184,36 +184,27 @@ float frame(vec2 v, vec2 w) {
 	return (
 		0.0 <= v.x - w.x && v.x + w.x <= 1.0 &&
 		0.0 <= v.y - w.y && v.y + w.y <= 1.0
-	)?1.0:0.74;
+	)?1.0:0.8;
 }
 
 void main( void ) {
 	vec2 p = ( gl_FragCoord.xy / resolution.y ) * mouse.x;
-	vec2 div1 = vec2(4.0);
-	vec2 div2 = vec2(1.0, 4.0);
-
-	// div1分割
-	vec2 uv = p;
-	vec3 buf1 = tile(uv, div1);
-	// 奇数indexのuv90°回転
-	float buf2 = 1.0 - checkered(uv, div1);
-	uv = rotate(buf1.xy, vec2(0.5), 0.5 * PI * buf2);
-	// div2分割
-	vec3 buf3 = tile(uv, div2);
-	uv = buf3.xy;
-	float index = buf1.z * tileSize(div2) + buf3.z;
-	// 総分割数算出
-	float size = tileSize(div1) * tileSize(div2) - 1.0;
+	vec2 div = vec2(2.0, 12.0);
 	
-	// 木目に当てる用のuv生成
-	vec2 uv2 = uv * vec2(2.0, 0.6);
-	float offset = index * size * 100.0;
-	// 木目模様生成
-	vec3 col = grain2(uv2 + vec2(offset, snoise(vec3(offset)) * 0.3));
+	vec2 uv = p;
+	vec3 buf1 = tile(fract(uv), vec2(1.0, div.y));
+	uv += vec2(buf1.z / div.y, 0.0);
+	vec3 buf2 = tile(uv, div);
+	uv = buf2.xy;
+	float f = frame(fract(uv), div * 0.0009); // フレームのつなぎ目を暗くする
+	float offset = buf2.z * tileSize(div) * 100.0;
+	uv.x += offset;
+	uv.y = uv.y * 0.9 + snoise(vec3(offset)) * 0.3;
+	
+	vec3 col = grain2(uv);
 	// 面おきに色にばらつきをつける
-	col += vec3(199.0, 173.0, 122.0) * (snoise(vec3(offset)) * 0.14 + 0.1) / 255.0;
-	// フレームのつなぎ目を暗くする
-	col *= frame(uv, div2 * 0.004);
-
+	col += vec3(199.0, 173.0, 122.0) * (snoise(vec3(offset)) * 0.05 + 0.05) / 255.0;
+	col *= f;
+	
 	gl_FragColor = vec4( col, 1.0 );
 }
