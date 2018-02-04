@@ -1,22 +1,17 @@
 /*
 *ドキュメント
-参考元 : https://github.com/ashima/webgl-noise
-float snoise(vec3 v)
-	Simplex Noiseを生成する
-	各次元の周波数は1
-	vに係数を掛けて周波数を調節する
-	戻り値の範囲は-1.0,1.0
 const int  oct  = 8;
-octaves(vec3 v, float per)
+octaves(vec3 v, float p)
 	Simplex Noiseを重ね合わせたノイズを生成する
 	重ねるノイズの数は定数octで定める
-	perで重ね合わせるノイズ間の周波数の差を決める
-	0.0<per<1.0で、値が小さいほど周波数の差が大きくなる
-	per=0.5が目安
+	重ねるノイズの周波数、振幅は指数増加、指数減衰する
+	指数関数の底がpとなる
+	per=2.3が目安
 	各次元の基音の周波数は1
 	vに係数を掛けて周波数を調節する
 	戻り値の範囲はおおよそ-1.0,1.0
 	範囲をはみ出ることもあるので注意
+	範囲内に収めたい場合はsigmoid1関数を使うと良い
 */
 
 #ifdef GL_ES
@@ -121,24 +116,23 @@ float snoise(vec3 v) {
 	return req;
 }
 
-const int  oct  = 8;
-float octaves(vec3 v, float per){
+const int  oct  = 4;
+float octaves(vec3 v, float p){
 	float req = 0.0;
 	for(int i = 0; i < oct; i++){
-		float freq = pow(per, float(i));
-		float amp  = pow(per, float(i));
-		req += snoise(v / freq) * amp;
+		float freq = pow(p, float(i));
+		float amp  = pow(p, float(-i));
+		req += snoise(v * freq) * amp;
 	}
 	req = clamp(req, -1.0, 1.0);
 	return req;
 }
 
-
 const float frequency = 10.0;
 void main( void ) {
 	vec2 position = gl_FragCoord.xy / resolution;
 
-	float n = octaves(vec3(position * frequency, time), 0.5);
+	float n = octaves(vec3(position * frequency, time), 2.3);
 	n = (n + 1.0) / 2.0;
 
 	gl_FragColor = vec4( vec3(n), 1.0 );

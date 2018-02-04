@@ -1,8 +1,5 @@
 /*
 *ドキュメント
-
-参考元 : https://github.com/ashima/webgl-noise
-
 float f(vec3 v){ return snoise(v); }
 	法線マップを求める元の関数
 	戻り値の範囲は-1.0,1.0
@@ -10,8 +7,7 @@ float f(vec3 v){ return snoise(v); }
 	値が大きい場所が山となる
 	今回はsnoiseを使用する
 
-const float delta = 0.01;
-vec3 normal(vec3 v)
+vec3 normal(vec3 v, float delta)
 	関数fをdeltaで微分し法線ベクトルを求める
 	戻り値の法線ベクトルの原点は
 	vec3(0.0, 0.0, 0.0)
@@ -123,29 +119,28 @@ float snoise(vec3 v) {
 
 float f(vec3 v){ return snoise(v); }
 
-const float delta = 0.01;
-vec3 normal(vec3 v) {
-	// 関数fの点v.xyにおけるxyの係数を求める
+vec3 normal(vec3 v, float delta) {
+	// 関数fをxyで偏微分し、点v.xyにおける値を求める
 	vec2 coefficient = vec2(
-		f(v + vec3(delta, 0.0, 0.0)) - f(v - vec3(delta, 0.0, 0.0)),
-		f(v + vec3(0.0, delta, 0.0)) - f(v - vec3(0.0, delta, 0.0))
-	) / delta;
-	// 係数からベクトルを求め、外積を計算し、法線ベクトルを求める
+		(f(v + vec3(delta, 0.0, 0.0)) - f(v - vec3(delta, 0.0, 0.0))) / delta, // xで偏微分
+		(f(v + vec3(0.0, delta, 0.0)) - f(v - vec3(0.0, delta, 0.0))) / delta  // yで偏微分
+	);
+	// 法線ベクトルを求める
 	vec3 req = vec3(
 		-coefficient.x,
 		-coefficient.y,
 		1.0
 	);
-	req /= length(req);
+	req /= length(req); // 法線ベクトルを単位ベクトル化
 	
 	return req;
 }
 
 const float frequency = 10.0;
 void main( void ) {
-	vec2 position = gl_FragCoord.xy / resolution;
+	vec2 position = gl_FragCoord.xy / resolution.y;
 
-	vec3 n = normal(vec3(position * frequency, time * 1.0));
+	vec3 n = normal(vec3(position * frequency, time * 1.0), 0.001);
 	n = (n + vec3(1.0)) / 2.0;
 
 	gl_FragColor = vec4( n, 1.0 );

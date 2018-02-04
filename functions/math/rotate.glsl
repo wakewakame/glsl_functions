@@ -17,13 +17,11 @@ uniform float time;
 uniform vec2 mouse;
 uniform vec2 resolution;
 
-float indexTile(vec2 v, vec2 div){
-	if ((div.x * div.y) - 1.0 == 0.0) return 0.0;
-	float index = 
-		floor(fract(v.x) * div.x) + 
-		floor(fract(v.y) * div.y) * div.x;
-	index /= (div.x * div.y) - 1.0;
-	return index;
+float frame(vec2 v, vec2 w) {
+	return (
+		0.0 <= v.x - w.x && v.x + w.x <= 1.0 &&
+		0.0 <= v.y - w.y && v.y + w.y <= 1.0
+	)?1.0:0.0;
 }
 
 vec2 rotate(vec2 v, vec2 c, float r){
@@ -40,8 +38,8 @@ const float freq = 1.0;
 void main(void){
 	vec2 p = gl_FragCoord.xy / resolution.y;
 
-	vec2 pos = rotate(p, vec2(0.5 * resolution.x / resolution.y, 0.5), time);
+	vec2 pos = rotate(p * 2.0 - vec2(0.5), vec2(0.5, 0.5), time);
 	
-	vec3 col = vec3(indexTile(pos, vec2(2.0, 2.0)));
+	vec3 col = vec3(frame(pos, vec2(0.01)));
 	gl_FragColor = vec4(col, 1.0);
 }

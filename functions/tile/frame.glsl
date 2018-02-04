@@ -1,9 +1,8 @@
 /*
 *ドキュメント
-float frame(vec2 v, vec2 div, float gap, float delta)
-	tile1の区切り目を返す
-	引数1,2,3はtile1の引数と同じ
-	deltaには線の太さを指定する
+float frame(vec2 v, vec2 w)
+	vの(0.0, 0.0), (1.0, 1.0)内側の範囲に枠を描く
+	wは線の太さ
 */
  
 #ifdef GL_ES
@@ -15,36 +14,29 @@ precision mediump float;
 uniform float time;
 uniform vec2 mouse;
 uniform vec2 resolution;
- 
-float indexTile(vec2 v, vec2 div){
-	if ((div.x * div.y) - 1.0 == 0.0) return 0.0;
-	float index = 
-		floor(fract(v.x) * div.x) + 
-		floor(fract(v.y) * div.y) * div.x;
-	index /= (div.x * div.y) - 1.0;
-	return index;
-}
- 
-float tile1(vec2 v, vec2 div, float gap){
-	vec2 p = v;
-	p.x += indexTile(p, vec2(1.0, div.y)) * gap * (div.y - 1.0);
-	p.x = indexTile(p, div);
-	return p.x;
+
+vec3 tile(vec2 uv, vec2 div){
+	vec2 req_uv = fract(uv * div); // uvの分割
+	float index = // 分割面のインデックス算出
+		floor(uv.x * div.x) + 
+		floor(uv.y * div.y) * ceil(div.x);
+	return vec3(req_uv, index);
 }
 
-float frame(vec2 v, vec2 div, float gap, float delta) {
+float frame(vec2 v, vec2 w) {
 	return (
-		(tile1(v + vec2(delta, 0.0), div, gap) == tile1(v - vec2(delta, 0.0), div, gap)) &&
-		(tile1(v + vec2(0.0, delta), div, gap) == tile1(v - vec2(0.0, delta), div, gap))
+		0.0 <= v.x - w.x && v.x + w.x <= 1.0 &&
+		0.0 <= v.y - w.y && v.y + w.y <= 1.0
 	)?1.0:0.0;
 }
  
 void main( void ) {
-	vec2 p = ( gl_FragCoord.xy / resolution.y );
-	p.x += time * 0.2;
-	vec2 div = vec2(2.0,6.0);
- 
-	float i = frame(p, div, 1.0 / 3.0, 0.001);
-
-	gl_FragColor = vec4( vec3(i), 1.0 );
+	vec2 p = ( gl_FragCoord.xy / resolution.xy );
+	vec2 div = mouse * 10.0;
+	
+	vec3 req = tile(p, div);
+	float f = frame(req.xy, vec2(0.01));
+	vec3 col = vec3(f);
+	
+	gl_FragColor = vec4( col, 1.0 );
 }
