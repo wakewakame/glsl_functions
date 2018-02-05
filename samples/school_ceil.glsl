@@ -124,7 +124,7 @@ float travertine1(vec2 v, float gap, float size, float len){
 	v = v / gap * 4.0; // 座標調節
 	size /= gap; // 模様の間隔に合わせてサイズ調節
 	v.y += snoise(vec3(v, 0.0) * 4.8 / size) * 0.06 * size; // 細かいノイズ
-	v.y += snoise(vec3(v, 0.0) * 0.1 / size) * 0.9 * size; // 大きいノイズ
+	v.y += snoise(vec3(v, 0.0) * 0.1 / size) * 0.4 * size; // 大きいノイズ
 	// 斜めに区切られたuvを作る
 	v = rotate(v - vec2(0.5), vec2(0.0), PI / 6.0); // 座標を30°回転
 	v = fract(v) - vec2(0.5); // 画面を0.0-1.0で分割し、各々のuvの原点をvec2(0.5)に移動
@@ -139,16 +139,31 @@ float travertine2(vec2 v){
 	float n = 0.0;
 	n += 1.0 - travertine1(v, 0.8, 1.0, 8.0);
 	n += 1.0 - travertine1(v + vec2(200.0), 0.5, 0.7, 2.0);
+	n *= 0.7;
 	n = 1.0 - n;
 	return n;
 }
 
+float frame(vec2 v, vec2 w) {
+	return (
+		0.0 <= v.x - w.x && v.x + w.x <= 1.0 &&
+		0.0 <= v.y - w.y && v.y + w.y <= 1.0
+	)?1.0:0.6;
+}
+
+float frame2(vec2 v, float w){
+	v.y *= 2.0;
+	v.x += floor(v.y) / 2.0;
+	v = fract(v);
+	return frame(v, vec2(1.0, 2.0) * w);
+}
+
 void main( void ) {
 	vec2 p = gl_FragCoord.xy / resolution.y;
-	
-	float n = travertine2(p * 3.0 * mouse.x);
-	
-	vec3 col = vec3(n);
+	p *= mouse.x * 3.0;
+		
+	float n = travertine2(p * 3.0);
+	vec3 col = vec3(n) * frame2(p * 0.8, 0.002);
 	
 	gl_FragColor = vec4(col, 1.0);
 

@@ -143,7 +143,7 @@ float travertine1(vec2 v, float gap, float size, float len){
 	v = v / gap * 4.0; // 座標調節
 	size /= gap; // 模様の間隔に合わせてサイズ調節
 	v.y += snoise(vec3(v, 0.0) * 4.8 / size) * 0.06 * size; // 細かいノイズ
-	v.y += snoise(vec3(v, 0.0) * 0.1 / size) * 0.9 * size; // 大きいノイズ
+	v.y += snoise(vec3(v, 0.0) * 0.1 / size) * 0.4 * size; // 大きいノイズ
 	// 斜めに区切られたuvを作る
 	v = rotate(v - vec2(0.5), vec2(0.0), PI / 6.0); // 座標を30°回転
 	v = fract(v) - vec2(0.5); // 画面を0.0-1.0で分割し、各々のuvの原点をvec2(0.5)に移動
