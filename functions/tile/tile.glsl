@@ -1,14 +1,15 @@
 /*
-*ドキュメント
 vec3 tile(vec2 uv, vec2 div)
 	uvを分割する関数
+	uvを(0.0, 0.0), (1.0, 1.0)の範囲で(div.x, div.y)分割する
 	uv : 分割するuv
-	div : uvを(0.0, 0.0), (1.0, 1.0)の範囲で(div.x, div.y)分割する
-	戻り値をreqとする。
-	req.xy : 分割されたuv
-	req.z : 分割面のインデックス (0.0<=req.z<=div.x*div.y-1.0)
+	div : 分割数
+	戻り値.xy : 分割されたuv
+	戻り値.z : 分割面のインデックス 
+		範囲 0.0, div.x*div.y-1.0
+
 float tileSize(vec2 div)
-	tile関数の分割数
+	tile関数の分割数を求める関数
 	(ceil(div.x) * ceil(div.y))を返す
 	1未満の場合は1を返す
 */

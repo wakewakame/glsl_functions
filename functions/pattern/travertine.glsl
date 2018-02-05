@@ -1,14 +1,20 @@
 /*
-引用元 : https://github.com/ashima/webgl-noise
-
-float snoise(vec3 v)
-	Simplex Noiseを生成する
-	各次元の周波数は1
-	vに係数を掛けて周波数を調節する
-	v : 座標
+float travertine1(vec2 v, float gap, float size, float len)
+	v : 座標 
 		目安 (0.0, 0.0), (1.0, 1.0)
-	戻り値 :	
-		範囲 -1.0, 1.0
+	gap : 模様間の長さ
+		目安 1.0
+	size : 模様の大きさ
+		目安 1.0
+	len : 模様の横長さ
+		目安 8.0
+	戻り値 : トラバーチン模様
+		範囲 0.0, 1.0
+
+float travertine2(vec2 v)
+	travertine1のラッパー関数
+	v : travertine1の引数vと等しい
+	戻り値 : travertine1の引数vと等しい
 */
 
 #ifdef GL_ES
@@ -20,6 +26,8 @@ precision mediump float;
 uniform float time;
 uniform vec2 mouse;
 uniform vec2 resolution;
+
+const float PI = 3.14159265;
 
 vec3 mod289(vec3 x) {
 	return x - floor(x * (1.0 / 289.0)) * 289.0;
@@ -113,13 +121,54 @@ float snoise(vec3 v) {
 	return req;
 }
 
+vec2 rotate(vec2 v, vec2 c, float r){
+	v -= c;
+	v = vec2(
+		cos(r) * v.x - sin(r) * v.y,
+		sin(r) * v.x + cos(r) * v.y
+	);
+	v += c;
+	return v;
+}
 
-const float frequency = 10.0;
+float enlarge1(float x, vec2 a, vec2 b){
+	return (x - a.x) * ((b.y - b.x)/(a.y - a.x)) + b.x;
+}
+
+float enlarge2(float x, vec2 a){
+	return clamp(enlarge1(x, a, vec2(0.0, 1.0)), 0.0, 1.0);
+}
+
+float travertine1(vec2 v, float gap, float size, float len){
+	v = v / gap * 4.0; // 座標調節
+	size /= gap; // 模様の間隔に合わせてサイズ調節
+	v.y += snoise(vec3(v, 0.0) * 4.8 / size) * 0.06 * size; // 細かいノイズ
+	v.y += snoise(vec3(v, 0.0) * 0.1 / size) * 0.9 * size; // 大きいノイズ
+	// 斜めに区切られたuvを作る
+	v = rotate(v - vec2(0.5), vec2(0.0), PI / 6.0); // 座標を30°回転
+	v = fract(v) - vec2(0.5); // 画面を0.0-1.0で分割し、各々のuvの原点をvec2(0.5)に移動
+	v = rotate(v, vec2(0.0), -PI / 6.0); // 各々のuvの座標を-30°回転
+	v /= vec2(len, 1.0) * size; // 各々のuvのx軸拡大
+	float n = length(v); // 各々のuvでフレア描画
+	n = enlarge2(n, vec2(0.0, 0.04)); // 値の拡大、クランプ
+	return n;
+}
+
+float travertine2(vec2 v){
+	float n = 0.0;
+	n += 1.0 - travertine1(v, 0.8, 1.0, 8.0);
+	n += 1.0 - travertine1(v + vec2(200.0), 0.5, 0.7, 2.0);
+	n = 1.0 - n;
+	return n;
+}
+
 void main( void ) {
-	vec2 position = gl_FragCoord.xy / resolution;
+	vec2 p = gl_FragCoord.xy / resolution.y;
+	
+	float n = travertine2(p * 3.0 * mouse.x);
+	
+	vec3 col = vec3(n);
+	
+	gl_FragColor = vec4(col, 1.0);
 
-	float n = snoise(vec3(position * frequency, time * 1.0));
-	n = (n + 1.0) / 2.0;
-
-	gl_FragColor = vec4( vec3(n), 1.0 );
 }

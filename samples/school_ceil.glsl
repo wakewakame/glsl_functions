@@ -1,26 +1,3 @@
-/*
-*ドキュメント
-参考元 : https://github.com/ashima/webgl-noise
-float grain1(vec3 v, float n)
-	木目模様を生成する関数
-	v.zの方向に木が伸びている
-	z軸に垂直な断面の模様が年輪の模様になる
-	z軸に平行な断面の模様が木材の模様になる
-	(v.x, v.y)の最小値、最大値の目安は(-1.0, -1.0), (1.0, 1.0)
-	v.x : v.y : v.z の比率の目安は 1 : 1 : 1
-	nはノイズの大きさ
-	0.0を指定すると波のない木目
-	大きくすると木目の波が大きくなる
-	目安は1.0
-	戻り値はrgb (0.0, 0.0, 0.0), (1.0, 1.0, 1.0)
-vec3 grain2(vec2 v)
-	grain1のラッパー関数
-	木材の模様を生成する
-	v : 座標
-	vの範囲の目安は(0.0, 0.0), (1.0, 1.0)
-	戻り値はrgb (0.0, 0.0, 0.0), (1.0, 1.0, 1.0)
-*/
-
 #ifdef GL_ES
 precision mediump float;
 #endif
@@ -125,63 +102,54 @@ float snoise(vec3 v) {
 	return req;
 }
 
-const int  oct  = 4;
-float octaves(vec3 v, float p){
-	float req = 0.0;
-	for(int i = 0; i < oct; i++){
-		float freq = pow(p, float(i));
-		float amp  = pow(p, float(-i));
-		req += snoise(v * freq) * amp;
-	}
-	req = clamp(req, -1.0, 1.0);
-	return req;
-}
-
-float sigmoid1(float x, float a){
-	float ex = exp(-2.0 * a * x);
-	return (1.0 - ex) / (1.0 + ex);
-}
-
-vec3 grain1(vec3 v, float n){
-	float l, w, r, m;
-	l = length(v.xy); // xyベクトルの長さを算出
-	l = pow(l, 2.0); // xyベクトルの長さを二乗
-	l += octaves(v  * n *  vec3(0.014, 0.014, 0.0042), 2.3) * 1.6; // 長さにノイズを加える
-	w =cos(2.0 * PI * l * 8.0); // xyベクトルの長さに応じて変化する波を作る
-	w = sigmoid1(w + 0.85, 3.0); // 波の形を-1.0, 1.0に収まるように調節
-	r = snoise(v * vec3(160.0, 160.0, 6.5)) + 0.5; // ザラザラしたノイズを生成
-	float p = 0.6;
-	m = w * p + r * (1.0 - p); // 波とザラザラをp:1.0-pで配合
-	m = (m + 1.0) / 2.0; // 0.0, 1.0に縮小
-	// 色付け
-	vec3 col1 =  vec3(243, 204, 163);
-	vec3 col2 = vec3(229, 164, 108);
-	vec3 col = (col1 * m + col2 * (1.0 - m)) / 255.0;
-	col += octaves(v * vec3(1.0, 1.0, 0.2), 2.3) * 0.05; // 全体的に明暗ノイズを加える
-	col = clamp(col, 0.0, 1.0); // 0.0, 1.0に収める
-	return col;
-}
-
-vec3 grain2(vec2 v){
-	vec3 pos = vec3(
-		0.6,
-		((v.y * 2.0) - 1.0),
-		(v.x + 10.0) * 2.0
+vec2 rotate(vec2 v, vec2 c, float r){
+	v -= c;
+	v = vec2(
+		cos(r) * v.x - sin(r) * v.y,
+		sin(r) * v.x + cos(r) * v.y
 	);
-	return grain1(pos, 1.0);
+	v += c;
+	return v;
 }
 
-float enlarge(float x, vec2 a, vec2 b){
+float enlarge1(float x, vec2 a, vec2 b){
 	return (x - a.x) * ((b.y - b.x)/(a.y - a.x)) + b.x;
 }
 
-void main(void){
+float enlarge2(float x, vec2 a){
+	return clamp(enlarge1(x, a, vec2(0.0, 1.0)), 0.0, 1.0);
+}
+
+float travertine1(vec2 v, float gap, float size, float len){
+	v = v / gap * 4.0; // 座標調節
+	size /= gap; // 模様の間隔に合わせてサイズ調節
+	v.y += snoise(vec3(v, 0.0) * 4.8 / size) * 0.06 * size; // 細かいノイズ
+	v.y += snoise(vec3(v, 0.0) * 0.1 / size) * 0.9 * size; // 大きいノイズ
+	// 斜めに区切られたuvを作る
+	v = rotate(v - vec2(0.5), vec2(0.0), PI / 6.0); // 座標を30°回転
+	v = fract(v) - vec2(0.5); // 画面を0.0-1.0で分割し、各々のuvの原点をvec2(0.5)に移動
+	v = rotate(v, vec2(0.0), -PI / 6.0); // 各々のuvの座標を-30°回転
+	v /= vec2(len, 1.0) * size; // 各々のuvのx軸拡大
+	float n = length(v); // 各々のuvでフレア描画
+	n = enlarge2(n, vec2(0.0, 0.04)); // 値の拡大、クランプ
+	return n;
+}
+
+float travertine2(vec2 v){
+	float n = 0.0;
+	n += 1.0 - travertine1(v, 0.8, 1.0, 8.0);
+	n += 1.0 - travertine1(v + vec2(200.0), 0.5, 0.7, 2.0);
+	n = 1.0 - n;
+	return n;
+}
+
+void main( void ) {
 	vec2 p = gl_FragCoord.xy / resolution.y;
 	
-	vec2 pos = p;
-	pos.x *= mouse.y;
-	pos.y = enlarge(pos.y, vec2(0.0, 1.0), vec2(0.5) + vec2(-1.0, 1.0) * mouse.y);
-	vec3 col = grain2(pos + vec2(time * 0.5, 0.0));
+	float n = travertine2(p * 3.0 * mouse.x);
+	
+	vec3 col = vec3(n);
 	
 	gl_FragColor = vec4(col, 1.0);
+
 }
